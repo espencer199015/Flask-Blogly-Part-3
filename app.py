@@ -1,8 +1,8 @@
 """Blogly application."""
 
-from flask import Flask, request, redirect, render_template
+from flask import Flask, flash, request, redirect, render_template
 from flask_debugtoolbar import DebugToolbarExtension
-from models import db, connect_db, User
+from models import POST, PostTag, db, connect_db, User, Tag
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql:///blogly"
@@ -12,20 +12,20 @@ app.config['SECRET_KEY'] = 'ihaveasecret'
 toolbar = DebugToolbarExtension(app)
 
 connect_db(app)
-db.create_all()
+with app.app_context():
+  db.create_all()
 
 @app.route('/')
 def root():
     """Homepage redirects to list of users."""
-posts = Post.query.order_by(Post.created_at.desc()).limit(5).all()
-    return render_template("posts/homepage.html", posts=posts)
+posts = POST.query.order_by(POST.created_at.desc()).limit(5).all()
+render_template("posts/homepage.html", posts=posts)
 
 @app.errorhandler(404)
 def page_not_found(e):
-    """Show 404 NOT FOUND page."""
+  """Show 404 NOT FOUND page."""
 
-    return render_template('404.html'), 404
-    return redirect("/users")
+  return render_template('404.html'), 404
 
 # User route
 
@@ -109,7 +109,7 @@ def posts_new(user_id):
     """Handle form submission for creating a new post for a specific user"""
 
     user = User.query.get_or_404(user_id)
-    new_post = Post(title=request.form['title'],
+    new_post = POST(title=request.form['title'],
                     content=request.form['content'],
                     user=user)
 
@@ -124,7 +124,7 @@ def posts_new(user_id):
 def posts_show(post_id):
     """Show a page with info on a specific post"""
 
-    post = Post.query.get_or_404(post_id)
+    post = PostTag.query.get_or_404(post_id)
     return render_template('posts/show.html', post=post)
 
 
@@ -132,7 +132,7 @@ def posts_show(post_id):
 def posts_edit(post_id):
     """Show a form to edit an existing post"""
 
-    post = Post.query.get_or_404(post_id)
+    post = PostTag.query.get_or_404(post_id)
     return render_template('posts/edit.html', post=post)
 
 
@@ -140,7 +140,7 @@ def posts_edit(post_id):
 def posts_update(post_id):
     """Handle form submission for updating an existing post"""
 
-    post = Post.query.get_or_404(post_id)
+    post = PostTag.query.get_or_404(post_id)
     post.title = request.form['title']
     post.content = request.form['content']
 
@@ -155,7 +155,7 @@ def posts_update(post_id):
 def posts_destroy(post_id):
     """Handle form submission for deleting an existing post"""
 
-    post = Post.query.get_or_404(post_id)
+    post = PostTag.query.get_or_404(post_id)
 
     db.session.delete(post)
     db.session.commit()
@@ -168,7 +168,7 @@ def posts_destroy(post_id):
 def tags_index():
     """Show a page with info on all tags"""
 
-    tags = Tag.query.all()
+    tags = PostTag.query.all()
     return render_template('tags/index.html', tags=tags)
 
 
@@ -176,7 +176,7 @@ def tags_index():
 def tags_new_form():
     """Show a form to create a new tag"""
 
-    posts = Post.query.all()
+    posts = PostTag.query.all()
     return render_template('tags/new.html', posts=posts)
 
 
@@ -185,8 +185,8 @@ def tags_new():
     """Handle form submission for creating a new tag"""
 
     post_ids = [int(num) for num in request.form.getlist("posts")]
-    posts = Post.query.filter(Post.id.in_(post_ids)).all()
-    new_tag = Tag(name=request.form['name'], posts=posts)
+    posts = PostTag.query.filter(PostTag.id.in_(post_ids)).all()
+    new_tag = PostTag(name=request.form['name'], posts=posts)
 
     db.session.add(new_tag)
     db.session.commit()
@@ -199,7 +199,7 @@ def tags_new():
 def tags_show(tag_id):
     """Show a page with info on a specific tag"""
 
-    tag = Tag.query.get_or_404(tag_id)
+    tag = PostTag.query.get_or_404(tag_id)
     return render_template('tags/show.html', tag=tag)
 
 
@@ -207,8 +207,8 @@ def tags_show(tag_id):
 def tags_edit_form(tag_id):
     """Show a form to edit an existing tag"""
 
-    tag = Tag.query.get_or_404(tag_id)
-    posts = Post.query.all()
+    tag = PostTag.query.get_or_404(tag_id)
+    posts = PostTag.query.all()
     return render_template('tags/edit.html', tag=tag, posts=posts)
 
 
@@ -216,10 +216,10 @@ def tags_edit_form(tag_id):
 def tags_edit(tag_id):
     """Handle form submission for updating an existing tag"""
 
-    tag = Tag.query.get_or_404(tag_id)
+    tag = PostTag.query.get_or_404(tag_id)
     tag.name = request.form['name']
     post_ids = [int(num) for num in request.form.getlist("posts")]
-    tag.posts = Post.query.filter(Post.id.in_(post_ids)).all()
+    tag.posts = PostTag.query.filter(PostTag.id.in_(post_ids)).all()
 
     db.session.add(tag)
     db.session.commit()
@@ -232,7 +232,7 @@ def tags_edit(tag_id):
 def tags_destroy(tag_id):
     """Handle form submission for deleting an existing tag"""
 
-    tag = Tag.query.get_or_404(tag_id)
+    tag = PostTag.query.get_or_404(tag_id)
     db.session.delete(tag)
     db.session.commit()
     flash(f"Tag '{tag.name}' deleted.")
